@@ -10,6 +10,7 @@ import (
 )
 
 const CLEAR_TIME = time.Duration(10) * time.Second
+const CLEAR_ADDRTIME = time.Duration(300) * time.Second
 
 var (
 	// global tcp pool
@@ -20,55 +21,61 @@ var (
 // free overtime tcp conn
 func init() {
 	go func() {
-		// TODO clear g_addrMap
-		fdList := list.New()
-		addrList := []net.Addr{}
 		for {
 			time.Sleep(CLEAR_TIME)
-
-			ts := time.Now()
-			g_lock.RLock()
-
-			// scan overtime connection and addr pool
-			for k, v := range g_addrMap {
-				v.LockRun(func() {
-					for e := v.Clist.Back(); true; e = v.Clist.Back() {
-						if e == nil {
-							if v.LastOpTime.Sub(ts) > CLEAR_TIME {
-								addrList = append(addrList, k)
-							}
-							break
-						}
-						if c, ok := e.Value.(connBase); ok {
-							if c.CheckTimeAfter(ts) {
-								fdList.PushBack(c)
-								v.Clist.Remove(e)
-							} else {
-								break
-							}
-						}
-					}
-				})
-			}
-			g_lock.RUnlock()
-
-			// clear connections
-			clearFd(fdList)
-
-			// clear addr pool
-			if len(addrList) > 0 {
-				g_lock.Lock()
-				for _, v := range addrList {
-					if tcp, ok := g_addrMap[v]; ok {
-						tcp.Destory = true
-						delete(g_addrMap, v)
-					}
-				}
-				g_lock.Unlock()
-				addrList = addrList[:0]
-			}
+			cleanup()
 		}
 	}()
+}
+
+// scan overtime connection and cleanup
+func cleanup() {
+	fdList := list.New() // overtime connections 
+	addrList := []net.Addr{} // unuseful addrs
+	ts := time.Now()
+
+	g_lock.RLock()
+	// scan overtime connection and addr pool
+	for k, v := range g_addrMap {
+		v.LockRun(func() {
+			e := v.Clist.Back()
+			for ; e != nil; e = v.Clist.Back() {
+				if c, ok := e.Value.(*connBase); ok {
+					if c.CheckTimeAfter(ts) {
+						break // not over time
+					}
+					// overtime, remove
+					fdList.PushBack(c)
+					v.Clist.Remove(e)
+				} else {
+					fdList.PushBack(c)
+					v.Clist.Remove(e)
+				}
+			}
+			if e == nil && ts.Sub(v.LastOpTime) > CLEAR_ADDRTIME {
+				addrList = append(addrList, k)
+			}
+
+		})
+	}
+	g_lock.RUnlock()
+
+
+	// clear connections
+	clearFd(fdList)
+
+
+	// clear addr pool
+	if len(addrList) > 0 {
+		g_lock.Lock()
+		for _, v := range addrList {
+			if tcp, ok := g_addrMap[v]; ok && tcp.Clist.Len() == 0 {
+				tcp.Destory = true
+				delete(g_addrMap, v)
+			}
+		}
+		g_lock.Unlock()
+	}
 }
 
 // tcp pool-node
@@ -138,11 +145,7 @@ func newTcpPool(addr net.Addr, keeptime uint32) *tcpPool {
 // use min time, Millisecond
 func (m *tcpPool) KeepTime(k uint32) {
 	if m.keeptime > k {
-		for !atomic.CompareAndSwapUint32(&m.keeptime, m.keeptime, k) {
-			if m.keeptime <= k {
-				break
-			}
-		}
+		atomic.CompareAndSwapUint32(&m.keeptime, m.keeptime, k)
 	}
 }
 
@@ -163,9 +166,9 @@ func (m *tcpPool) GetFd(addr net.Addr, dialTimeout time.Duration, beginTime time
 	tsAfter := beginTime.Add(-time.Duration(m.keeptime) * time.Millisecond)
 	m.LockRun(func() {
 		if e := m.Clist.Front(); e != nil {
-			if c, ok := e.Value.(connBase); ok {
+			if c, ok := e.Value.(*connBase); ok {
 				if c.CheckTimeAfter(tsAfter) { // not over time
-					conn = &c
+					conn = c
 					m.Clist.Remove(e)
 				}
 			}
@@ -227,7 +230,7 @@ func CloseFd(c net.Conn, err error) {
 	}
 	if err != nil {
 		if cb, ok := c.(*connBase); ok {
-			cb.Destory()
+			cb.Close()
 			return
 		}
 	}
