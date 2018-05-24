@@ -42,7 +42,7 @@ func RecvAll(c net.Conn, check Checker) (code int, recv []byte, err error) {
 			return
 		}
 		start += recvlen
-		status, max = check(buf)
+		status, max = check(buf[:start])
 		if status < 0 {
 			code, err = ERR_CHECK, ERROR_PACK_CHECK
 			return

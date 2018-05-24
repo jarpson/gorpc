@@ -10,6 +10,9 @@ const (
 	ERR_SEND	= -4
 	ERR_RECV	= -6
 	ERR_CHECK	= -7
+	ERR_PACK	= -8
+	ERR_UNPACK	= -9
+	ERR_NODEAL_FUN	= -10
 )
 
 var (
