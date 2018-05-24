@@ -15,7 +15,7 @@ type Configure interface {
 // extend configure: get number value, set default value
 type ConfigureWape struct {
 	Configure
-	section	string
+	section string
 }
 
 // create ConfigureWape by Configure
@@ -59,4 +59,3 @@ func (m *ConfigureWape) GetDefaultUint32(name string, def uint32) uint32 {
 	}
 	return def
 }
-

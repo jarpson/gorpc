@@ -14,7 +14,7 @@ const CLEAR_TIME = time.Duration(10) * time.Second
 var (
 	// global tcp pool
 	g_addrMap = make(map[net.Addr]*tcpPool)
-	g_lock = new(sync.RWMutex)
+	g_lock    = new(sync.RWMutex)
 )
 
 // free overtime tcp conn
@@ -74,16 +74,16 @@ func init() {
 // tcp pool-node
 type connBase struct {
 	net.Conn
-	Parent *tcpPool
+	Parent       *tcpPool
 	lastUsedTime time.Time
 }
 
 func NewConnBase(addr net.Addr, parent *tcpPool, dialTimeout time.Duration) (conn net.Conn, err error) {
 	conn, err = net.DialTimeout(addr.Network(), addr.String(), dialTimeout)
 	if err == nil {
-		conn = &connBase{Conn:conn, Parent:parent}
+		conn = &connBase{Conn: conn, Parent: parent}
 	}
-	return 
+	return
 }
 
 func (m *connBase) CheckTimeAfter(ts time.Time) bool {
@@ -101,7 +101,7 @@ func (m *connBase) Close() error {
 	m.lastUsedTime = time.Now()
 	pushfail := false
 	m.Parent.LockRun(func() {
-		if m.Parent == nil || m.Parent.Destory { // check again 
+		if m.Parent == nil || m.Parent.Destory { // check again
 			pushfail = true
 		} else {
 			m.Parent.Clist.PushFront(m)
@@ -121,18 +121,18 @@ func (m *connBase) Destory() {
 }
 
 type tcpPool struct {
-	addr net.Addr
-	keeptime uint32  // ms
+	addr     net.Addr
+	keeptime uint32 // ms
 
 	Clist *list.List // pool list
-	lock int32	// lock for Clist
+	lock  int32      // lock for Clist
 
 	LastOpTime time.Time
-	Destory bool
+	Destory    bool
 }
 
 func newTcpPool(addr net.Addr, keeptime uint32) *tcpPool {
-	return &tcpPool{addr:addr, keeptime:keeptime, Clist:list.New()}
+	return &tcpPool{addr: addr, keeptime: keeptime, Clist: list.New()}
 }
 
 // use min time, Millisecond
@@ -147,7 +147,7 @@ func (m *tcpPool) KeepTime(k uint32) {
 }
 
 func (m *tcpPool) LockRun(f func()) {
-	for  {
+	for {
 		if atomic.SwapInt32(&m.lock, 1) == 0 {
 			f()
 			break
@@ -178,7 +178,7 @@ func (m *tcpPool) GetFd(addr net.Addr, dialTimeout time.Duration, beginTime time
 	return conn, err
 }
 
-func clearFd(fdList * list.List) {
+func clearFd(fdList *list.List) {
 	if fdList == nil {
 		return
 	}
@@ -202,7 +202,7 @@ func GetFd(addr net.Addr, timeout time.Duration, keeptime uint32, beginTime time
 		g_lock.RLock()
 		tcp, ok := g_addrMap[addr]
 		g_lock.RUnlock()
-		if !ok {	// not found, so add
+		if !ok { // not found, so add
 			g_lock.Lock()
 			if tcp, ok = g_addrMap[addr]; !ok { // check again
 				tcp = newTcpPool(addr, keeptime)
@@ -233,4 +233,3 @@ func CloseFd(c net.Conn, err error) {
 	}
 	c.Close()
 }
-

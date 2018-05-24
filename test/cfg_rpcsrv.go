@@ -1,12 +1,12 @@
 package main
 
 import (
+	gorpc ".."
 	"fmt"
 	"github.com/vaughan0/go-ini"
-	gorpc ".."
 )
 
-func echo (r *gorpc.Request, data []byte) (code int, rsp []byte) {
+func echo(r *gorpc.Request, data []byte) (code int, rsp []byte) {
 	fmt.Printf("recv: %v,[%s]\n", r.Addr, data)
 	return 0, data
 }

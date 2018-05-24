@@ -4,10 +4,9 @@ import (
 	"net"
 )
 
-
-// Checker: check recv package 
+// Checker: check recv package
 // input: []byte of recv data
-// output: 
+// output:
 //    return 1: check result(<0:package err, 0: not over, >0:ok and len of package
 //    return 2: full package len(0: unknown) include head of package
 // notice: if input []byte is empty, return 0, length_of_head
@@ -16,24 +15,24 @@ type Checker func([]byte) (int, int)
 // default checker :no check package
 var DefaultChecker Checker = func(d []byte) (int, int) { return len(d), len(d) }
 
-
-// recv all data 
+// recv all data
 func RecvAll(c net.Conn, check Checker) (code int, recv []byte, err error) {
 	if check == nil {
 		check = DefaultChecker
 	}
 
-	var start, status, max int
+	var start, status int
 	_, headlen := check([]byte{})
 	if headlen <= 0 { // if no package_head
 		headlen = INIT_PACKATE_LEN
 	}
 	buf := GetBufN(headlen)
-	buflen := len(buf)
+	max := len(buf)
 	for {
+		buflen := len(buf)
 		var recvlen int
 		if max > start { // if we know package len
-			recvlen, err = c.Read(buf[start : max - start])
+			recvlen, err = c.Read(buf[start:max])
 		} else {
 			recvlen, err = c.Read(buf[start:])
 		}
@@ -49,21 +48,19 @@ func RecvAll(c net.Conn, check Checker) (code int, recv []byte, err error) {
 		}
 		if status > 0 {
 			code, err = ERR_OK, nil
-			recv = buf[:status];
+			recv = buf[:status]
 			return // success
 		}
-	
+
 		if max > MAX_PACKATE_LEN {
 			code, err = ERR_CHECK, ERROR_PACK_LONG
 		}
 		// stat == 0 : go on reading
 
-		if max > buflen { // full package len > cur buffer len 
-			buf = ResizeBuf(buf, max)  // expand buffer to max
-			buflen = len(buf)
+		if max > buflen { // full package len > cur buffer len
+			buf = ResizeBuf(buf, max) // expand buffer to max
 		} else if max == 0 && start == buflen { // cannot read head && read buffer full
-			buf = ResizeBuf(buf, 2 * buflen)  // expand buffer to 2 * buffer
-			buflen = len(buf)
+			buf = ResizeBuf(buf, 2*buflen) // expand buffer to 2 * buffer
 		}
 	}
 	code, err = ERR_RECV, ERROR_UNKNOW

@@ -19,8 +19,8 @@ type Router interface {
 	GetConf() (uint32, int, error)
 
 	// Report: report result
-	// input:@addr address get by GetAddr, 
-	//		@routetype get by GetAddr, 
+	// input:@addr address get by GetAddr,
+	//		@routetype get by GetAddr,
 	//		@code return for call
 	//		@beginTime req time
 	Report(addr net.Addr, routetype, code int, reportTime time.Time)
@@ -48,25 +48,25 @@ func getaddr(nettype, addr string) (raddr net.Addr, err error) {
 }
 
 type AddrRoute struct {
-	rddr	net.Addr
-	timeout time.Duration // ms
-	keeptime uint32 // ms
-	retry	int
+	rddr     net.Addr
+	timeout  time.Duration // ms
+	keeptime uint32        // ms
+	retry    int
 }
 
-func (m * AddrRoute) GetAddr(retry int, beginTime time.Time) (net.Addr, time.Duration, time.Time, int, error) {
+func (m *AddrRoute) GetAddr(retry int, beginTime time.Time) (net.Addr, time.Duration, time.Time, int, error) {
 	return m.rddr, m.timeout, beginTime, 0, nil
 }
 
-func (m * AddrRoute) GetConf() (uint32, int, error) {
+func (m *AddrRoute) GetConf() (uint32, int, error) {
 	return m.keeptime, m.retry, nil
 }
 
-func (m * AddrRoute) Report(addr net.Addr, routetype, code int, beginTime time.Time) {
+func (m *AddrRoute) Report(addr net.Addr, routetype, code int, beginTime time.Time) {
 }
 
 // Load From configure
-func (m * AddrRoute) Load(conf Configure, apiname string) (err error) {
+func (m *AddrRoute) Load(conf Configure, apiname string) (err error) {
 	cfg := NewConfigureWape(conf, apiname)
 
 	timeout := cfg.GetDefaultUint32("timeout", 100) // ms
@@ -81,7 +81,7 @@ func (m * AddrRoute) Load(conf Configure, apiname string) (err error) {
 	return
 }
 func NewAddrRoute(nettype, addr string, timeout, keeptime uint32, retry int) (Router, error) {
-	raddr := &AddrRoute{timeout:(time.Duration(timeout) * time.Millisecond), keeptime:keeptime, retry:retry}
+	raddr := &AddrRoute{timeout: (time.Duration(timeout) * time.Millisecond), keeptime: keeptime, retry: retry}
 	var err error
 	raddr.rddr, err = getaddr(nettype, addr)
 	return raddr, err

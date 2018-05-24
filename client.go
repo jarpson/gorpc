@@ -7,7 +7,7 @@ import (
 
 // rpc client
 type RpcCli struct {
-	Router  // router, for get conf and addr
+	Router // router, for get conf and addr
 }
 
 // create new rpc client
@@ -22,7 +22,7 @@ func NewRpcCli(route Router) *RpcCli {
 //		@recv: recved data
 //		@addr: request server addr
 //		@err: error message
-func (r *RpcCli) SendAndRecv(data[]byte, check Checker) (code int, recv []byte, addr net.Addr, err error) {
+func (r *RpcCli) SendAndRecv(data []byte, check Checker) (code int, recv []byte, addr net.Addr, err error) {
 	beginTime := time.Now()
 	keeptime, retry, err := r.GetConf()
 	if err != nil {
@@ -62,4 +62,11 @@ func (r *RpcCli) SendAndRecv(data[]byte, check Checker) (code int, recv []byte, 
 		}
 	}
 	return
+}
+
+func (r *RpcCli) Load(conf Configure, apiname string) (err error) {
+	if r.Router == nil {
+		r.Router = &AddrRoute{}
+	}
+	return r.Router.Load(conf, apiname)
 }
